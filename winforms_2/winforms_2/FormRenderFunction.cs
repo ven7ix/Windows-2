@@ -1,18 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Printing;
 using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Windows.Forms.VisualStyles;
-using static System.Windows.Forms.AxHost;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.TrayNotify;
 
 namespace winforms_2
 {
@@ -23,11 +16,21 @@ namespace winforms_2
         private float unit = 100.0f; //еденичная длина
         private readonly List<PointF> functionPointsList = new List<PointF>();
         private PointF offset = new PointF(0, 0);
-        private Color graphColor = Color.Black;
-        private Brush backgroundBrush;
-        private readonly string backgroundStyle = "Solid";
-
         private float levelOfDetail = 0.1f;
+
+        struct Backgound
+        {
+            public Brush brush;
+            public string style;
+
+            public Backgound(Brush brush)
+            {
+                this.brush = brush;
+                style = "Solid";
+            }
+        }
+        private Backgound background;
+        private Color graphColor = Color.Black;
 
         private bool isDragging = false;
         private Point previousMousePosition;
@@ -36,6 +39,7 @@ namespace winforms_2
         {
             InitializeComponent();
             CalculateCenter();
+            background = new Backgound(new SolidBrush(panelGraph.BackColor));
         }
 
         private void CalculateCenter()
@@ -70,7 +74,7 @@ namespace winforms_2
             PointF[] pointsArray = pointsList.ToArray();
 
             for (int i = 0; i < pointsArray.Length - 2; i += 2)
-                screen.DrawLine(Pens.Gray, pointsArray[i], pointsArray[i + 1]);
+                screen.DrawLine(Pens.Black, pointsArray[i], pointsArray[i + 1]);
         }
 
         private void CalculateLevelOfDetail()
@@ -106,25 +110,25 @@ namespace winforms_2
         {
             Graphics screen = e.Graphics;
 
-            if (backgroundBrush != null)
-                if (backgroundStyle == "Texture")
-                    screen.FillEllipse(backgroundBrush, 0, 0, 100, 50);
+            if (background.brush != null)
+            {
+                if (background.style == "Picture")
+                    screen.DrawImage(Properties.Resources.deathStare, 0, 0, panelGraph.Width, panelGraph.Height);
                 else
-                    screen.FillRectangle(backgroundBrush, panelGraph.ClientRectangle);
+                    screen.FillRectangle(background.brush, panelGraph.ClientRectangle);
+            }
 
             DrawStartThings(screen);
-            
+
+            labelCoordinateX.Text = "X: " + (-offset.X).ToString();
+            labelCoordinateY.Text = "Y: " + offset.Y.ToString();
+
             if (functionPointsList.Count != 0)
             {
                 CalculateFunctionPoints();
 
                 for (int i = 0; i < functionPointsList.Count - 1; i++)
                     screen.DrawLine(new Pen(graphColor), functionPointsList[i], functionPointsList[i + 1]);
-
-                /*
-                foreach (PointF p in functionPointsList)
-                    screen.DrawRectangle(Pens.Red, p.X - 2, p.Y - 2, 4, 4);
-                */
             }
         }
 
@@ -165,6 +169,7 @@ namespace winforms_2
         private void PanelGraph_Resize(object sender, EventArgs e)
         {
             CalculateCenter();
+            BackgroundStyle_Change(panelGraph.BackColor, background.style);
             panelGraph.Invalidate();
         }
 
@@ -240,26 +245,24 @@ namespace winforms_2
             panelGraph.Invalidate();
         }
 
-        private void BackgroundStyle_OnDataSubmited(Color color, string style)
+        private void BackgroundStyle_Change(Color color, string style)
         {
             panelGraph.BackColor = color;
+            background.style = style;
 
             switch (style)
             {
                 case "Solid":
-                    backgroundBrush = new SolidBrush(color);
+                    background.brush = new SolidBrush(color);
                     break;
                 case "Gradient":
-                    backgroundBrush = new LinearGradientBrush(panelGraph.ClientRectangle, color, ControlPaint.Dark(color), 45);
+                    background.brush = new LinearGradientBrush(panelGraph.ClientRectangle, color, ControlPaint.Dark(color), 45);
                     break;
                 case "Hatch":
-                    backgroundBrush = new HatchBrush(HatchStyle.DiagonalCross, color, ControlPaint.Dark(color));
+                    background.brush = new HatchBrush(HatchStyle.DiagonalCross, color, ControlPaint.Dark(color));
                     break;
                 case "Texture":
-                    backgroundBrush = new TextureBrush(Properties.Resources.deathStare, new Rectangle(220, 220, 120, 120));
-                    break;
-                case "Picture":
-                    panelGraph.BackgroundImage = Properties.Resources.deathStare;
+                    background.brush = new TextureBrush(Properties.Resources.deathStare, new Rectangle(220, 220, 120, 120));
                     break;
                 default:
                     break;
@@ -270,7 +273,7 @@ namespace winforms_2
         private void ButtonBackgroudStyle_Click(object sender, EventArgs e)
         {
             BackgroundStyle background = new BackgroundStyle();
-            background.OnDataSubmitted += BackgroundStyle_OnDataSubmited;
+            background.OnDataSubmitted += BackgroundStyle_Change;
             background.ShowDialog();
         }
     }
