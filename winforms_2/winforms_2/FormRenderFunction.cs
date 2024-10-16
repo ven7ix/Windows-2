@@ -22,10 +22,12 @@ namespace winforms_2
         private IFunction function; //чтобы определить какую функцию надо рисовать
         private float unit = 100.0f; //еденичная длина
         private readonly List<PointF> functionPointsList = new List<PointF>();
-        private PointF trueO = new PointF(0, 0);
+        private PointF offset = new PointF(0, 0);
         private Color graphColor = Color.Black;
         private Brush backgroundBrush;
-        private string backgroundStyle = "Solid";
+        private readonly string backgroundStyle = "Solid";
+
+        private float levelOfDetail = 0.1f;
 
         private bool isDragging = false;
         private Point previousMousePosition;
@@ -38,7 +40,7 @@ namespace winforms_2
 
         private void CalculateCenter()
         {
-            O = new PointF(panelGraph.Width / 2 + trueO.X, panelGraph.Height / 2 + trueO.Y);
+            O = new PointF(panelGraph.Width / 2 + offset.X, panelGraph.Height / 2 + offset.Y);
         }
 
         private PointF MakePointNormal(PointF point)
@@ -71,16 +73,32 @@ namespace winforms_2
                 screen.DrawLine(Pens.Gray, pointsArray[i], pointsArray[i + 1]);
         }
 
+        private void CalculateLevelOfDetail()
+        {
+            if (unit < 25)
+                levelOfDetail = 0.5f;
+            else if (unit > 500)
+                levelOfDetail = 0.01f;
+            else
+                levelOfDetail = 0.1f;
+        }
+
         private void CalculateFunctionPoints()
         {
             functionPointsList.Clear();
+            CalculateLevelOfDetail();
 
-            float bounds = panelGraph.Width / 2 / unit + 1;
-            for (float x = -bounds; x <= bounds; x += 0.01f)
+            float boundsX = panelGraph.Width / 2 / unit + 1;
+            for (float x = -boundsX; x <= boundsX; x += levelOfDetail)
             {
-                PointF p = new PointF(x - trueO.X / unit, function.Calc(x - trueO.X / unit));
+                float xOffsetUnited = x - offset.X / unit;
+
+                PointF p = new PointF(xOffsetUnited, function.Calc(xOffsetUnited));
                 p = MakePointNormal(p);
                 functionPointsList.Add(p);
+
+                //показ количества точек
+                labelPointsCount.Text = functionPointsList.Count.ToString();
             }
         }
         
@@ -89,24 +107,31 @@ namespace winforms_2
             Graphics screen = e.Graphics;
 
             if (backgroundBrush != null)
-                screen.FillRectangle(backgroundBrush, panelGraph.ClientRectangle);
-
-            if (backgroundStyle == "Texture")
-                screen.FillEllipse(backgroundBrush, 0, 0, 100, 50);
+                if (backgroundStyle == "Texture")
+                    screen.FillEllipse(backgroundBrush, 0, 0, 100, 50);
+                else
+                    screen.FillRectangle(backgroundBrush, panelGraph.ClientRectangle);
 
             DrawStartThings(screen);
             
             if (functionPointsList.Count != 0)
             {
                 CalculateFunctionPoints();
-                screen.DrawLines(new Pen(graphColor), functionPointsList.ToArray());
+
+                for (int i = 0; i < functionPointsList.Count - 1; i++)
+                    screen.DrawLine(new Pen(graphColor), functionPointsList[i], functionPointsList[i + 1]);
+
+                /*
+                foreach (PointF p in functionPointsList)
+                    screen.DrawRectangle(Pens.Red, p.X - 2, p.Y - 2, 4, 4);
+                */
             }
         }
 
         private void ResetScale()
         {
             unit = 100.0f;
-            labelScale.Text = "1:" + Math.Round(unit / 100, 1).ToString();
+            labelScale.Text = "1:" + Math.Round(unit / 100, 2).ToString();
         }
 
         private void ButtonRandomFunction_Click(object sender, EventArgs e)
@@ -114,8 +139,7 @@ namespace winforms_2
             ResetScale();
 
             Random random = new Random();
-
-            switch(random.Next(0, 4))
+            switch(random.Next(0, 5))
             {
                 case 0:
                     function = new Sine();
@@ -146,12 +170,12 @@ namespace winforms_2
 
         private void PanelGraph_MouseWheel(object sender, MouseEventArgs e)
         {
-            if (e.Delta > 0)
+            if (e.Delta > 0 && unit < 2000)
                 unit *= 1.1f;
-            else if (e.Delta < 0)
+            else if (e.Delta < 0 && unit > 10)
                 unit /= 1.1f;
 
-            labelScale.Text = "1:" + Math.Round(unit / 100, 1).ToString();
+            labelScale.Text = "1:" + Math.Round(unit / 100, 2).ToString();
 
             panelGraph.Invalidate();
         }
@@ -180,8 +204,8 @@ namespace winforms_2
             {
                 PointF delta = new PointF(e.X - previousMousePosition.X, e.Y - previousMousePosition.Y);
 
-                trueO.X += delta.X;
-                trueO.Y += delta.Y;
+                offset.X += delta.X;
+                offset.Y += delta.Y;
 
                 previousMousePosition = e.Location;
                 panelGraph.Invalidate();
@@ -225,7 +249,7 @@ namespace winforms_2
                 case "Solid":
                     backgroundBrush = new SolidBrush(color);
                     break;
-                case "LinearGradient":
+                case "Gradient":
                     backgroundBrush = new LinearGradientBrush(panelGraph.ClientRectangle, color, ControlPaint.Dark(color), 45);
                     break;
                 case "Hatch":
@@ -240,7 +264,6 @@ namespace winforms_2
                 default:
                     break;
             }
-
             panelGraph.Invalidate();
         }
 
@@ -249,7 +272,6 @@ namespace winforms_2
             BackgroundStyle background = new BackgroundStyle();
             background.OnDataSubmitted += BackgroundStyle_OnDataSubmited;
             background.ShowDialog();
-            panelGraph.Invalidate();
         }
     }
 }

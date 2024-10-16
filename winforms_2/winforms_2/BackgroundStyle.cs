@@ -22,6 +22,7 @@ namespace winforms_2
 
         private void ButtonChangeBackgroundColor_Click(object sender, EventArgs e)
         {
+            colorDialogChangeBackgroundColor.Color = panelBackColor;
             if (colorDialogChangeBackgroundColor.ShowDialog() == DialogResult.Cancel)
                 return;
             panelBackColor = colorDialogChangeBackgroundColor.Color;

@@ -37,6 +37,7 @@ namespace winforms_2
             this.buttonRandomFunction = new System.Windows.Forms.Button();
             this.colorDialogGraphColor = new System.Windows.Forms.ColorDialog();
             this.panelGraph = new winforms_2.DoubleBufferedPanel();
+            this.labelPointsCount = new System.Windows.Forms.Label();
             this.labelScale = new System.Windows.Forms.Label();
             this.groupBox1.SuspendLayout();
             this.panelGraph.SuspendLayout();
@@ -102,6 +103,7 @@ namespace winforms_2
             // 
             // panelGraph
             // 
+            this.panelGraph.Controls.Add(this.labelPointsCount);
             this.panelGraph.Controls.Add(this.labelScale);
             this.panelGraph.Dock = System.Windows.Forms.DockStyle.Fill;
             this.panelGraph.Location = new System.Drawing.Point(0, 0);
@@ -115,11 +117,21 @@ namespace winforms_2
             this.panelGraph.MouseWheel += new System.Windows.Forms.MouseEventHandler(this.PanelGraph_MouseWheel);
             this.panelGraph.Resize += new System.EventHandler(this.PanelGraph_Resize);
             // 
+            // labelPointsCount
+            // 
+            this.labelPointsCount.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.labelPointsCount.AutoSize = true;
+            this.labelPointsCount.Location = new System.Drawing.Point(630, 34);
+            this.labelPointsCount.Name = "labelPointsCount";
+            this.labelPointsCount.Size = new System.Drawing.Size(13, 13);
+            this.labelPointsCount.TabIndex = 1;
+            this.labelPointsCount.Text = "0";
+            // 
             // labelScale
             // 
             this.labelScale.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.labelScale.AutoSize = true;
-            this.labelScale.Location = new System.Drawing.Point(639, 9);
+            this.labelScale.Location = new System.Drawing.Point(621, 9);
             this.labelScale.Name = "labelScale";
             this.labelScale.Size = new System.Drawing.Size(22, 13);
             this.labelScale.TabIndex = 0;
@@ -151,6 +163,7 @@ namespace winforms_2
         private DoubleBufferedPanel panelGraph;
         private Button buttonChangeGraphColor;
         private Button buttonBackgroudStyle;
+        private Label labelPointsCount;
     }
 }
 
