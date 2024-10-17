@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Printing;
 using System.IO;
+using System.Reflection.Emit;
 using System.Windows.Forms;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.TrayNotify;
 
@@ -16,7 +17,6 @@ namespace winforms_2
         private float unit = 100.0f; //еденичная длина
         private readonly List<PointF> functionPointsList = new List<PointF>();
         private PointF offset = new PointF(0, 0);
-        private float levelOfDetail = 0.1f;
 
         struct Backgound
         {
@@ -35,6 +35,11 @@ namespace winforms_2
         private bool isDragging = false;
         private Point previousMousePosition;
 
+        private PointF mousePosWindow; //позиция курсора мыши (доп. задание)
+
+        private PointF selectedPointGraph; //выделенная точка (доп. задание)
+        private bool rightButtonClicked = false;
+
         public FormRenderFunction()
         {
             InitializeComponent();
@@ -47,10 +52,25 @@ namespace winforms_2
             O = new PointF(panelGraph.Width / 2 + offset.X, panelGraph.Height / 2 + offset.Y);
         }
 
-        private PointF MakePointNormal(PointF point)
+        private PointF ConvertGraphToWindow(PointF point)
         {
             point.X = point.X * unit + O.X;
-            point.Y = -point.Y * unit + O.Y; //отсчет у Y идет сверху вниз (самый верх - 0, самый низ - screen.Height)
+            point.Y = -point.Y * unit + O.Y;
+            return point;
+        }
+
+        private PointF ConvertWindowToGraph(PointF point)
+        {
+            if (point.X < O.X)
+                point.X = -Math.Abs(O.X - point.X) / unit;
+            else
+                point.X = Math.Abs(O.X - point.X) / unit;
+
+            if (point.Y < O.Y)
+                point.Y = Math.Abs(O.Y - point.Y) / unit;
+            else
+                point.Y = -Math.Abs(O.Y - point.Y) / unit;
+
             return point;
         }
 
@@ -62,43 +82,34 @@ namespace winforms_2
 
             //Unit Circle
             IFunction forCircle = new Sine();
-            List<PointF> pointsList = new List<PointF>();
+            List<PointF> pointsListCircle = new List<PointF>();
 
             for (float x = 0; x < 2 * (float)Math.PI; x += 0.1f)
             {
                 PointF p = new PointF(forCircle.Calc(x - (float)Math.PI / 2), forCircle.Calc(x));
-                p = MakePointNormal(p);
-                pointsList.Add(p);
+                p = ConvertGraphToWindow(p);
+                pointsListCircle.Add(p);
             }
 
-            PointF[] pointsArray = pointsList.ToArray();
+            PointF[] pointsArray = pointsListCircle.ToArray();
 
             for (int i = 0; i < pointsArray.Length - 2; i += 2)
                 screen.DrawLine(Pens.Black, pointsArray[i], pointsArray[i + 1]);
         }
 
-        private void CalculateLevelOfDetail()
-        {
-            if (unit < 25)
-                levelOfDetail = 0.5f;
-            else if (unit > 500)
-                levelOfDetail = 0.01f;
-            else
-                levelOfDetail = 0.1f;
-        }
-
         private void CalculateFunctionPoints()
         {
             functionPointsList.Clear();
-            CalculateLevelOfDetail();
 
-            float boundsX = panelGraph.Width / 2 / unit + 1;
-            for (float x = -boundsX; x <= boundsX; x += levelOfDetail)
+            for (PointF windowPoint = new PointF(0, 0); windowPoint.X < panelGraph.Width; windowPoint.X += 5)
             {
-                float xOffsetUnited = x - offset.X / unit;
+                if (windowPoint.Y < 0 || windowPoint.Y > panelGraph.Width)
+                    continue;
 
-                PointF p = new PointF(xOffsetUnited, function.Calc(xOffsetUnited));
-                p = MakePointNormal(p);
+                PointF graphPoint = ConvertWindowToGraph(windowPoint);
+
+                PointF p = new PointF(graphPoint.X, function.Calc(graphPoint.X));
+                p = ConvertGraphToWindow(p);
                 functionPointsList.Add(p);
 
                 //показ количества точек
@@ -119,23 +130,71 @@ namespace winforms_2
             }
 
             DrawStartThings(screen);
+            MouseBeam(screen);
+            DrawSelectedPoint(screen);
 
-            labelCoordinateX.Text = "X: " + (-offset.X).ToString();
-            labelCoordinateY.Text = "Y: " + offset.Y.ToString();
+
 
             if (functionPointsList.Count != 0)
             {
                 CalculateFunctionPoints();
-
+                
                 for (int i = 0; i < functionPointsList.Count - 1; i++)
+                {
+                    if (functionPointsList[i].Y < functionPointsList[i + 1].Y && function is Tangent)
+                        continue;
                     screen.DrawLine(new Pen(graphColor), functionPointsList[i], functionPointsList[i + 1]);
+                    //screen.DrawRectangle(Pens.Red, functionPointsList[i].X - 2, functionPointsList[i].Y - 2, 4, 4);
+                }
             }
+        }
+
+        private void DrawSelectedPoint(Graphics screen)
+        {
+            if (rightButtonClicked)
+            {
+                selectedPointGraph = ConvertWindowToGraph(mousePosWindow);
+                rightButtonClicked = false;
+            }
+
+            PointF selectedPointWindow = ConvertGraphToWindow(selectedPointGraph);
+
+            screen.FillRectangle(Brushes.Red, selectedPointWindow.X - 2, selectedPointWindow.Y - 2, 4, 4);
+
+
+            labelSelectedCoordinateXY.Location = Point.Round(selectedPointWindow);
+            labelSelectedCoordinateXY.Text = "x: " + selectedPointGraph.X.ToString() + " y: " + selectedPointGraph.Y.ToString();
+            labelSelectedCoordinateXY.Update();
+        }
+
+        private void MouseBeam(Graphics screen)
+        {
+            if (functionPointsList.Count == 0)
+                return;
+
+            PointF mousePosGraph = ConvertWindowToGraph(mousePosWindow);
+
+            PointF pointGraph = new PointF(mousePosGraph.X, function.Calc(mousePosGraph.X));
+            PointF pointWindow = ConvertGraphToWindow(pointGraph);
+
+            screen.DrawLine(Pens.Red, pointWindow.X, O.Y, pointWindow.X, pointWindow.Y);
+            screen.DrawLine(Pens.Red, O.X, pointWindow.Y, pointWindow.X, pointWindow.Y);
+
+            labelCoordinateXY.Location = Point.Round(pointWindow);
+            labelCoordinateXY.Text = "x: " + pointGraph.X.ToString() + " y: " + pointGraph.Y.ToString();
+            labelCoordinateXY.Update();
+        }
+
+        private void PanelGraph_MouseClick(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+                rightButtonClicked = true;
         }
 
         private void ResetScale()
         {
             unit = 100.0f;
-            labelScale.Text = "1:" + Math.Round(unit / 100, 2).ToString();
+            labelScale.Text = Math.Round(unit / 100, 2).ToString();
         }
 
         private void ButtonRandomFunction_Click(object sender, EventArgs e)
@@ -169,7 +228,7 @@ namespace winforms_2
         private void PanelGraph_Resize(object sender, EventArgs e)
         {
             CalculateCenter();
-            BackgroundStyle_Change(panelGraph.BackColor, background.style);
+            BackgroundStyle_Change(panelGraph.BackColor, background.style); //чтобы градиент работал
             panelGraph.Invalidate();
         }
 
@@ -177,10 +236,10 @@ namespace winforms_2
         {
             if (e.Delta > 0 && unit < 2000)
                 unit *= 1.1f;
-            else if (e.Delta < 0 && unit > 10)
+            else if (e.Delta < 0 && unit > 20)
                 unit /= 1.1f;
 
-            labelScale.Text = "1:" + Math.Round(unit / 100, 2).ToString();
+            labelScale.Text = Math.Round(unit / 100, 2).ToString();
 
             panelGraph.Invalidate();
         }
@@ -204,6 +263,9 @@ namespace winforms_2
 
         private void PanelGraph_MouseMove(object sender, MouseEventArgs e)
         {
+            mousePosWindow.X = e.X;
+            mousePosWindow.Y = e.Y;
+
             CalculateCenter();
             if (isDragging)
             {
@@ -213,8 +275,8 @@ namespace winforms_2
                 offset.Y += delta.Y;
 
                 previousMousePosition = e.Location;
-                panelGraph.Invalidate();
             }
+            panelGraph.Invalidate();
         }
 
         private void ButtonSaveFunction_Click(object sender, EventArgs e)

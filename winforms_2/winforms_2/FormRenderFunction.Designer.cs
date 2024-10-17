@@ -37,8 +37,8 @@ namespace winforms_2
             this.buttonRandomFunction = new System.Windows.Forms.Button();
             this.colorDialogGraphColor = new System.Windows.Forms.ColorDialog();
             this.panelGraph = new winforms_2.DoubleBufferedPanel();
-            this.labelCoordinateY = new System.Windows.Forms.Label();
-            this.labelCoordinateX = new System.Windows.Forms.Label();
+            this.labelSelectedCoordinateXY = new System.Windows.Forms.Label();
+            this.labelCoordinateXY = new System.Windows.Forms.Label();
             this.labelPointsCount = new System.Windows.Forms.Label();
             this.labelScale = new System.Windows.Forms.Label();
             this.groupBox1.SuspendLayout();
@@ -105,8 +105,8 @@ namespace winforms_2
             // 
             // panelGraph
             // 
-            this.panelGraph.Controls.Add(this.labelCoordinateY);
-            this.panelGraph.Controls.Add(this.labelCoordinateX);
+            this.panelGraph.Controls.Add(this.labelSelectedCoordinateXY);
+            this.panelGraph.Controls.Add(this.labelCoordinateXY);
             this.panelGraph.Controls.Add(this.labelPointsCount);
             this.panelGraph.Controls.Add(this.labelScale);
             this.panelGraph.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -115,31 +115,32 @@ namespace winforms_2
             this.panelGraph.Size = new System.Drawing.Size(667, 450);
             this.panelGraph.TabIndex = 3;
             this.panelGraph.Paint += new System.Windows.Forms.PaintEventHandler(this.PanelGraph_Paint);
+            this.panelGraph.MouseClick += new System.Windows.Forms.MouseEventHandler(this.PanelGraph_MouseClick);
             this.panelGraph.MouseDown += new System.Windows.Forms.MouseEventHandler(this.PanelGraph_MouseDown);
             this.panelGraph.MouseMove += new System.Windows.Forms.MouseEventHandler(this.PanelGraph_MouseMove);
             this.panelGraph.MouseUp += new System.Windows.Forms.MouseEventHandler(this.PanelGraph_MouseUp);
             this.panelGraph.MouseWheel += new System.Windows.Forms.MouseEventHandler(this.PanelGraph_MouseWheel);
             this.panelGraph.Resize += new System.EventHandler(this.PanelGraph_Resize);
             // 
-            // labelCoordinateY
+            // labelSelectedCoordinateXY
             // 
-            this.labelCoordinateY.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.labelCoordinateY.AutoSize = true;
-            this.labelCoordinateY.Location = new System.Drawing.Point(621, 48);
-            this.labelCoordinateY.Name = "labelCoordinateY";
-            this.labelCoordinateY.Size = new System.Drawing.Size(26, 13);
-            this.labelCoordinateY.TabIndex = 3;
-            this.labelCoordinateY.Text = "Y: 0";
+            this.labelSelectedCoordinateXY.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.labelSelectedCoordinateXY.AutoSize = true;
+            this.labelSelectedCoordinateXY.Location = new System.Drawing.Point(571, 48);
+            this.labelSelectedCoordinateXY.Name = "labelSelectedCoordinateXY";
+            this.labelSelectedCoordinateXY.Size = new System.Drawing.Size(93, 13);
+            this.labelSelectedCoordinateXY.TabIndex = 3;
+            this.labelSelectedCoordinateXY.Text = "(selected) x: 0 y: 0";
             // 
-            // labelCoordinateX
+            // labelCoordinateXY
             // 
-            this.labelCoordinateX.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.labelCoordinateX.AutoSize = true;
-            this.labelCoordinateX.Location = new System.Drawing.Point(621, 35);
-            this.labelCoordinateX.Name = "labelCoordinateX";
-            this.labelCoordinateX.Size = new System.Drawing.Size(26, 13);
-            this.labelCoordinateX.TabIndex = 2;
-            this.labelCoordinateX.Text = "X: 0";
+            this.labelCoordinateXY.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.labelCoordinateXY.AutoSize = true;
+            this.labelCoordinateXY.Location = new System.Drawing.Point(621, 35);
+            this.labelCoordinateXY.Name = "labelCoordinateXY";
+            this.labelCoordinateXY.Size = new System.Drawing.Size(44, 13);
+            this.labelCoordinateXY.TabIndex = 2;
+            this.labelCoordinateXY.Text = "x: 0 y: 0";
             // 
             // labelPointsCount
             // 
@@ -157,9 +158,9 @@ namespace winforms_2
             this.labelScale.AutoSize = true;
             this.labelScale.Location = new System.Drawing.Point(621, 9);
             this.labelScale.Name = "labelScale";
-            this.labelScale.Size = new System.Drawing.Size(22, 13);
+            this.labelScale.Size = new System.Drawing.Size(13, 13);
             this.labelScale.TabIndex = 0;
-            this.labelScale.Text = "1:1";
+            this.labelScale.Text = "1";
             // 
             // FormRenderFunction
             // 
@@ -189,8 +190,8 @@ namespace winforms_2
         private Button buttonChangeGraphColor;
         private Button buttonBackgroudStyle;
         private Label labelPointsCount;
-        private Label labelCoordinateY;
-        private Label labelCoordinateX;
+        private Label labelCoordinateXY;
+        private Label labelSelectedCoordinateXY;
     }
 }
 

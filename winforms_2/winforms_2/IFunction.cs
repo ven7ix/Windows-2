@@ -8,6 +8,7 @@ namespace winforms_2
 {
     internal interface IFunction
     {
+        //Calc можно использовать ТОЛЬКО на Graph точках, на точках Window - нельзя
         float Calc(double x);
     }
 }
