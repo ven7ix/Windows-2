@@ -126,6 +126,7 @@ namespace winforms_2
             // 
             this.labelSelectedCoordinateXY.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.labelSelectedCoordinateXY.AutoSize = true;
+            this.labelSelectedCoordinateXY.Enabled = false;
             this.labelSelectedCoordinateXY.Location = new System.Drawing.Point(571, 48);
             this.labelSelectedCoordinateXY.Name = "labelSelectedCoordinateXY";
             this.labelSelectedCoordinateXY.Size = new System.Drawing.Size(93, 13);
@@ -136,6 +137,7 @@ namespace winforms_2
             // 
             this.labelCoordinateXY.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.labelCoordinateXY.AutoSize = true;
+            this.labelCoordinateXY.Enabled = false;
             this.labelCoordinateXY.Location = new System.Drawing.Point(621, 35);
             this.labelCoordinateXY.Name = "labelCoordinateXY";
             this.labelCoordinateXY.Size = new System.Drawing.Size(44, 13);

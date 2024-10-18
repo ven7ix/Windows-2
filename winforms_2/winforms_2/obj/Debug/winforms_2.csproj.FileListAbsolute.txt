@@ -30,3 +30,14 @@ C:\Users\Andrew\Desktop\winforms_2_1\winforms_2\obj\Debug\winforms_2.csproj.Gene
 C:\Users\Andrew\Desktop\winforms_2_1\winforms_2\obj\Debug\winforms_2.csproj.CoreCompileInputs.cache
 C:\Users\Andrew\Desktop\winforms_2_1\winforms_2\obj\Debug\winforms_2.exe
 C:\Users\Andrew\Desktop\winforms_2_1\winforms_2\obj\Debug\winforms_2.pdb
+D:\winforms_2\winforms_2\bin\Debug\winforms_2.exe.config
+D:\winforms_2\winforms_2\bin\Debug\winforms_2.exe
+D:\winforms_2\winforms_2\bin\Debug\winforms_2.pdb
+D:\winforms_2\winforms_2\obj\Debug\winforms_2.csproj.AssemblyReference.cache
+D:\winforms_2\winforms_2\obj\Debug\winforms_2.BackgroundStyle.resources
+D:\winforms_2\winforms_2\obj\Debug\winforms_2.FormRenderFunction.resources
+D:\winforms_2\winforms_2\obj\Debug\winforms_2.Properties.Resources.resources
+D:\winforms_2\winforms_2\obj\Debug\winforms_2.csproj.GenerateResource.cache
+D:\winforms_2\winforms_2\obj\Debug\winforms_2.csproj.CoreCompileInputs.cache
+D:\winforms_2\winforms_2\obj\Debug\winforms_2.exe
+D:\winforms_2\winforms_2\obj\Debug\winforms_2.pdb

@@ -112,40 +112,109 @@ namespace winforms_2
                 p = ConvertGraphToWindow(p);
                 functionPointsList.Add(p);
 
+                
+
                 //показ количества точек
                 labelPointsCount.Text = functionPointsList.Count.ToString();
             }
         }
         
+        private void DrawBackground(Graphics screen)
+        {
+            if (background.brush == null) 
+                return;
+
+            if (background.style == "Picture")
+                screen.DrawImage(Properties.Resources.deathStare, 0, 0, panelGraph.Width, panelGraph.Height);
+            else
+                screen.FillRectangle(background.brush, panelGraph.ClientRectangle);
+        }
+
         private void PanelGraph_Paint(object sender, PaintEventArgs e)
         {
             Graphics screen = e.Graphics;
 
-            if (background.brush != null)
-            {
-                if (background.style == "Picture")
-                    screen.DrawImage(Properties.Resources.deathStare, 0, 0, panelGraph.Width, panelGraph.Height);
-                else
-                    screen.FillRectangle(background.brush, panelGraph.ClientRectangle);
-            }
+            DrawBackground(screen);
 
             DrawStartThings(screen);
             MouseBeam(screen);
             DrawSelectedPoint(screen);
 
+            RenderFunctionPoints(screen);
+        }
 
+        private void RenderFunctionPoints(Graphics screen)
+        {
+            if (functionPointsList.Count == 0) 
+                return;
 
-            if (functionPointsList.Count != 0)
+            CalculateFunctionPoints();
+
+            //тангенс (с ветвями в бесконечности)
+            if (function is Tangent)
             {
-                CalculateFunctionPoints();
-                
-                for (int i = 0; i < functionPointsList.Count - 1; i++)
+                RenderTangentCorrectly(screen);
+                return;
+            }
+            
+            //все остальные функции
+            for (int i = 0; i < functionPointsList.Count - 1; i++)
+            {
+                screen.DrawLine(new Pen(graphColor), functionPointsList[i], functionPointsList[i + 1]);
+                //screen.DrawRectangle(Pens.Blue, functionPointsList[i].X - 2, functionPointsList[i].Y - 2, 4, 4); //точки
+            }
+        }
+
+        private void RenderTangentCorrectly(Graphics screen)
+        {
+            List<PointF> tangentInfinitePoints = new List<PointF>();
+            float PI = (float)Math.PI;
+            float unreachablePoint = panelGraph.Height + 999;
+            
+            //бежим вправо от нуля
+            PointF graphBoundRight = ConvertWindowToGraph(new PointF(panelGraph.Width, 0));
+            PointF graphPointRight = new PointF(PI / 2, 0);
+            for (; graphPointRight.X < graphBoundRight.X + PI; graphPointRight.X += PI)
+            {
+                if (ConvertGraphToWindow(graphPointRight).X > panelGraph.Width)
+                    continue;
+
+                graphPointRight.Y = unreachablePoint;
+                tangentInfinitePoints.Add(ConvertGraphToWindow(graphPointRight));
+
+                graphPointRight.Y = -unreachablePoint;
+                tangentInfinitePoints.Add(ConvertGraphToWindow(graphPointRight));
+            }
+
+            //бежим влево от нуля
+            PointF graphBoundLeft = ConvertWindowToGraph(new PointF(0, 0));
+            PointF graphPointLeft = new PointF(-PI / 2, 0);
+            for (; graphPointLeft.X > graphBoundLeft.X - PI; graphPointLeft.X -= PI)
+            {
+                if (ConvertGraphToWindow(graphPointLeft).X < 0)
+                    continue;
+
+                graphPointLeft.Y = -unreachablePoint;
+                tangentInfinitePoints.Insert(0, ConvertGraphToWindow(graphPointLeft));
+
+                graphPointLeft.Y = unreachablePoint;
+                tangentInfinitePoints.Insert(0, ConvertGraphToWindow(graphPointLeft));
+            }
+
+            //общий рендер
+            int countUnreachable = 0;
+            for (int i = 0; i < functionPointsList.Count - 1; i++)
+            {
+                //отрисовка точке в бесконечности
+                if (functionPointsList[i].Y < functionPointsList[i + 1].Y)
                 {
-                    if (functionPointsList[i].Y < functionPointsList[i + 1].Y && function is Tangent)
-                        continue;
-                    screen.DrawLine(new Pen(graphColor), functionPointsList[i], functionPointsList[i + 1]);
-                    //screen.DrawRectangle(Pens.Red, functionPointsList[i].X - 2, functionPointsList[i].Y - 2, 4, 4);
+                    screen.DrawLine(new Pen(graphColor), functionPointsList[i], tangentInfinitePoints[countUnreachable++]);
+                    screen.DrawLine(new Pen(graphColor), functionPointsList[i + 1], tangentInfinitePoints[countUnreachable++]);
+                    continue;
                 }
+
+                screen.DrawLine(new Pen(graphColor), functionPointsList[i], functionPointsList[i + 1]);
+                //screen.DrawRectangle(Pens.Blue, functionPointsList[i].X - 2, functionPointsList[i].Y - 2, 4, 4); //точки
             }
         }
 
@@ -159,12 +228,12 @@ namespace winforms_2
 
             PointF selectedPointWindow = ConvertGraphToWindow(selectedPointGraph);
 
-            screen.FillRectangle(Brushes.Red, selectedPointWindow.X - 2, selectedPointWindow.Y - 2, 4, 4);
-
-
-            labelSelectedCoordinateXY.Location = Point.Round(selectedPointWindow);
+            //создаем новый point, чтобы label не перекрывал точку
+            labelSelectedCoordinateXY.Location = Point.Round(new PointF(selectedPointWindow.X + 2, selectedPointWindow.Y + 2));
             labelSelectedCoordinateXY.Text = "x: " + selectedPointGraph.X.ToString() + " y: " + selectedPointGraph.Y.ToString();
             labelSelectedCoordinateXY.Update();
+
+            screen.FillRectangle(Brushes.Red, selectedPointWindow.X - 2, selectedPointWindow.Y - 2, 4, 4);
         }
 
         private void MouseBeam(Graphics screen)
@@ -229,6 +298,7 @@ namespace winforms_2
         {
             CalculateCenter();
             BackgroundStyle_Change(panelGraph.BackColor, background.style); //чтобы градиент работал
+
             panelGraph.Invalidate();
         }
 
@@ -283,18 +353,14 @@ namespace winforms_2
         {
             SaveFileDialog saveFileDialog = new SaveFileDialog
             {
-                Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*",
+                Filter = "PNG Image |*.png",
             };
-
-            string dataToSave = "";
-
-            foreach (PointF p in functionPointsList)
-                dataToSave += p.X.ToString() + "\t" + p.Y.ToString() + "\n";
 
             if (saveFileDialog.ShowDialog() == DialogResult.OK)
             {
-                string filePath = saveFileDialog.FileName;
-                File.WriteAllText(filePath, dataToSave);
+                Bitmap bitmap = new Bitmap(panelGraph.Width, panelGraph.Height);
+                panelGraph.DrawToBitmap(bitmap, new Rectangle(0, 0, panelGraph.Width, panelGraph.Height));
+                bitmap.Save(saveFileDialog.FileName, System.Drawing.Imaging.ImageFormat.Png);
             }
         }
 
