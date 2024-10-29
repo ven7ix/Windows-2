@@ -16,6 +16,8 @@ namespace winforms_2
         private IFunction function; //чтобы определить какую функцию надо рисовать
         private float unit = 100.0f; //еденичная длина
         private readonly List<PointF> functionPointsList = new List<PointF>();
+        private readonly List<PointF> derivativePointsList = new List<PointF>();
+        private readonly List<PointF> functionNormalPoints = new List<PointF>();
         private PointF offset = new PointF(0, 0);
 
         struct Backgound
@@ -47,6 +49,16 @@ namespace winforms_2
             background = new Backgound(new SolidBrush(panelGraph.BackColor));
         }
 
+
+        //
+        //Конвертации и пересчеты
+        //
+        private void ResetScale()
+        {
+            unit = 100.0f;
+            labelScale.Text = Math.Round(unit / 100, 2).ToString();
+        }
+
         private void CalculateCenter()
         {
             O = new PointF(panelGraph.Width / 2 + offset.X, panelGraph.Height / 2 + offset.Y);
@@ -74,27 +86,29 @@ namespace winforms_2
             return point;
         }
 
-        private void DrawStartThings(Graphics screen)
+        private PointF CalculatePoint(PointF point)
         {
-            //Coordinate Axes
-            screen.DrawLine(Pens.Black, new PointF(O.X, 0), new PointF(O.X, panelGraph.Height));
-            screen.DrawLine(Pens.Black, new PointF(0, O.Y), new PointF(panelGraph.Width, O.Y));
+            return new PointF(point.X + offset.X, point.Y + offset.Y);
+        }
 
-            //Unit Circle
-            IFunction forCircle = new Sine();
-            List<PointF> pointsListCircle = new List<PointF>();
 
-            for (float x = 0; x < 2 * (float)Math.PI; x += 0.1f)
-            {
-                PointF p = new PointF(forCircle.Calc(x - (float)Math.PI / 2), forCircle.Calc(x));
-                p = ConvertGraphToWindow(p);
-                pointsListCircle.Add(p);
-            }
+        //
+        //Все расчеты и рендер
+        //
+        private void PanelGraph_Paint(object sender, PaintEventArgs e)
+        {
+            Graphics screen = e.Graphics;
 
-            PointF[] pointsArray = pointsListCircle.ToArray();
+            DrawBackground(screen);
 
-            for (int i = 0; i < pointsArray.Length - 2; i += 2)
-                screen.DrawLine(Pens.Black, pointsArray[i], pointsArray[i + 1]);
+            DrawStartThings(screen);
+
+            RenderFunctionPoints(screen);
+
+            RenderTangentPoints(screen);
+
+            RenderNormalLine(screen);
+            RenderBall(screen);
         }
 
         private void CalculateFunctionPoints()
@@ -103,113 +117,32 @@ namespace winforms_2
 
             for (PointF windowPoint = new PointF(0, 0); windowPoint.X < panelGraph.Width; windowPoint.X += 5)
             {
-                if (windowPoint.Y < 0 || windowPoint.Y > panelGraph.Width)
-                    continue;
-
                 PointF graphPoint = ConvertWindowToGraph(windowPoint);
 
                 PointF p = new PointF(graphPoint.X, function.Calc(graphPoint.X));
                 p = ConvertGraphToWindow(p);
+
+                if (p.Y < -panelGraph.Height || p.Y > panelGraph.Height * 1.5f)
+                    continue;
+
                 functionPointsList.Add(p);
-
-                
-
-                //показ количества точек
-                labelPointsCount.Text = functionPointsList.Count.ToString();
             }
-        }
-        
-        private void DrawBackground(Graphics screen)
-        {
-            if (background.brush == null) 
-                return;
-
-            if (background.style == "Picture")
-                screen.DrawImage(Properties.Resources.deathStare, 0, 0, panelGraph.Width, panelGraph.Height);
-            else
-                screen.FillRectangle(background.brush, panelGraph.ClientRectangle);
-        }
-
-        private void PanelGraph_Paint(object sender, PaintEventArgs e)
-        {
-            Graphics screen = e.Graphics;
-
-            DrawBackground(screen);
-
-            DrawStartThings(screen);
-            MouseBeam(screen);
-            DrawSelectedPoint(screen);
-
-            RenderFunctionPoints(screen);
         }
 
         private void RenderFunctionPoints(Graphics screen)
         {
-            if (functionPointsList.Count == 0) 
+            if (function == null)
                 return;
 
             CalculateFunctionPoints();
 
-            //тангенс (с ветвями в бесконечности)
-            if (function is Tangent)
-            {
-                RenderTangentCorrectly(screen);
-                return;
-            }
-            
-            //все остальные функции
             for (int i = 0; i < functionPointsList.Count - 1; i++)
             {
-                screen.DrawLine(new Pen(graphColor), functionPointsList[i], functionPointsList[i + 1]);
-                //screen.DrawRectangle(Pens.Blue, functionPointsList[i].X - 2, functionPointsList[i].Y - 2, 4, 4); //точки
-            }
-        }
-
-        private void RenderTangentCorrectly(Graphics screen)
-        {
-            List<PointF> tangentInfinitePoints = new List<PointF>();
-            float PI = (float)Math.PI;
-            float unreachablePoint = panelGraph.Height + 999;
-            
-            //бежим вправо от нуля
-            PointF graphBoundRight = ConvertWindowToGraph(new PointF(panelGraph.Width, 0));
-            PointF graphPointRight = new PointF(PI / 2, 0);
-            for (; graphPointRight.X < graphBoundRight.X + PI; graphPointRight.X += PI)
-            {
-                if (ConvertGraphToWindow(graphPointRight).X > panelGraph.Width)
-                    continue;
-
-                graphPointRight.Y = unreachablePoint;
-                tangentInfinitePoints.Add(ConvertGraphToWindow(graphPointRight));
-
-                graphPointRight.Y = -unreachablePoint;
-                tangentInfinitePoints.Add(ConvertGraphToWindow(graphPointRight));
-            }
-
-            //бежим влево от нуля
-            PointF graphBoundLeft = ConvertWindowToGraph(new PointF(0, 0));
-            PointF graphPointLeft = new PointF(-PI / 2, 0);
-            for (; graphPointLeft.X > graphBoundLeft.X - PI; graphPointLeft.X -= PI)
-            {
-                if (ConvertGraphToWindow(graphPointLeft).X < 0)
-                    continue;
-
-                graphPointLeft.Y = -unreachablePoint;
-                tangentInfinitePoints.Insert(0, ConvertGraphToWindow(graphPointLeft));
-
-                graphPointLeft.Y = unreachablePoint;
-                tangentInfinitePoints.Insert(0, ConvertGraphToWindow(graphPointLeft));
-            }
-
-            //общий рендер
-            int countUnreachable = 0;
-            for (int i = 0; i < functionPointsList.Count - 1; i++)
-            {
-                //отрисовка точке в бесконечности
-                if (functionPointsList[i].Y < functionPointsList[i + 1].Y)
+                if (functionPointsList[i].Y < functionPointsList[i + 1].Y && function is Tangent)
                 {
-                    screen.DrawLine(new Pen(graphColor), functionPointsList[i], tangentInfinitePoints[countUnreachable++]);
-                    screen.DrawLine(new Pen(graphColor), functionPointsList[i + 1], tangentInfinitePoints[countUnreachable++]);
+                    //Линии для тангенса (ломаются, при прокрутке вниз или вверх)
+                    screen.DrawLine(new Pen(graphColor), functionPointsList[i], new PointF(functionPointsList[i].X, 0));
+                    screen.DrawLine(new Pen(graphColor), functionPointsList[i + 1], new PointF(functionPointsList[i].X, panelGraph.Height));
                     continue;
                 }
 
@@ -218,52 +151,179 @@ namespace winforms_2
             }
         }
 
-        private void DrawSelectedPoint(Graphics screen)
+        PointF windowPointBL; //bottom left
+        PointF windowPointBR; //bottom right
+        PointF windowPointTL; //top left
+        PointF windowPointTR; //top right
+        //обязательно передавать точку на ГРАФИКЕ
+        private void CalculateTangentPoints(PointF point)
         {
-            if (rightButtonClicked)
-            {
-                selectedPointGraph = ConvertWindowToGraph(mousePosWindow);
-                rightButtonClicked = false;
-            }
+            PointF derivativePoint = new PointF(point.X, function.Derivative(point.X));
+            derivativePointsList.Clear();
 
-            PointF selectedPointWindow = ConvertGraphToWindow(selectedPointGraph);
+            //просто формула из инета
+            LinearExpression functionDerivative = new LinearExpression(derivativePoint.Y, point.Y - derivativePoint.Y * point.X);
+            LinearExpression functionNormal = new LinearExpression(-1 / derivativePoint.Y, point.X / derivativePoint.Y + point.Y);
 
-            //создаем новый point, чтобы label не перекрывал точку
-            labelSelectedCoordinateXY.Location = Point.Round(new PointF(selectedPointWindow.X + 2, selectedPointWindow.Y + 2));
-            labelSelectedCoordinateXY.Text = "x: " + selectedPointGraph.X.ToString() + " y: " + selectedPointGraph.Y.ToString();
-            labelSelectedCoordinateXY.Update();
 
-            screen.FillRectangle(Brushes.Red, selectedPointWindow.X - 2, selectedPointWindow.Y - 2, 4, 4);
+
+            PointF graphPointBL = new PointF(point.X - function.CalcX(point.X), functionDerivative.Calc(point.X - function.CalcX(point.X))); //bottom left
+            PointF graphPointBR = new PointF(point.X + function.CalcX(point.X), functionDerivative.Calc(point.X + function.CalcX(point.X))); //bottom right
+            PointF graphPointTL = new PointF(graphPointBL.X, functionNormal.Calc(graphPointBL.X)); //top left
+            PointF graphPointTR = new PointF(graphPointBR.X, functionNormal.Calc(graphPointBR.X)); //top left
+
+
+            windowPointBL = ConvertGraphToWindow(graphPointBL);
+            windowPointBR = ConvertGraphToWindow(graphPointBR);
+            windowPointTL = ConvertGraphToWindow(graphPointTL);
+            windowPointTR = ConvertGraphToWindow(graphPointTR);
         }
 
-        private void MouseBeam(Graphics screen)
+        private void RenderTangentPoints(Graphics screen)
+        {
+            if (function == null)
+                return;
+
+            PointF mousePosGraph = ConvertWindowToGraph(mousePosWindow);
+            PointF pointGraph = new PointF(mousePosGraph.X, function.Calc(mousePosGraph.X));
+            CalculateTangentPoints(pointGraph);
+
+            screen.DrawLine(Pens.Blue, windowPointBL, windowPointBR);
+            screen.DrawLine(Pens.Blue, windowPointTL, windowPointBR);
+            screen.DrawLine(Pens.Blue, windowPointTL, windowPointBL);
+            screen.DrawLine(Pens.Blue, windowPointTR, windowPointBR);
+            screen.DrawLine(Pens.Blue, windowPointTR, windowPointBL);
+
+        }
+
+
+        //
+        //Доп задание (большое)
+        //
+        PointF ballDestinationGraph;
+        PointF ballOriginGraph;
+        PointF ballCurrentPositionGraph;
+        private void CalculateNormalLine()
+        {
+            //производная в точке
+            PointF derivativePoint = new PointF(ballDestinationGraph.X, function.Derivative(ballDestinationGraph.X));
+            //прямая, перпендикулярная касательной функции в точке derivativePoint
+            LinearExpression functionNormal = new LinearExpression(-1 / derivativePoint.Y, ballDestinationGraph.X / derivativePoint.Y + ballDestinationGraph.Y);
+
+            //точка места появления мяча
+            PointF cornerTopLeftGraph = ConvertWindowToGraph(new PointF(0, 0));
+            ballOriginGraph = new PointF(cornerTopLeftGraph.X, functionNormal.Calc(cornerTopLeftGraph.X));
+        }
+
+        private void RenderNormalLine(Graphics screen)
+        {
+            if (function == null)
+                return;
+
+            if (!timerFallingBalls.Enabled)
+                return;
+
+            CalculateNormalLine();
+
+            PointF ballDestinationWindow = ConvertGraphToWindow(ballDestinationGraph);
+            PointF ballOriginWindow = ConvertGraphToWindow(ballOriginGraph);
+
+            screen.DrawLine(Pens.Blue, ballOriginWindow, ballDestinationWindow);
+        }
+
+        private void ButtonStartGame_Click(object sender, EventArgs e)
         {
             if (functionPointsList.Count == 0)
                 return;
 
-            PointF mousePosGraph = ConvertWindowToGraph(mousePosWindow);
+            if (function is Tangent)
+            {
+                MessageBox.Show("Not wortking for tangent :(");
+                return;
+            }
 
-            PointF pointGraph = new PointF(mousePosGraph.X, function.Calc(mousePosGraph.X));
-            PointF pointWindow = ConvertGraphToWindow(pointGraph);
+            timerFallingBalls.Enabled = true;
 
-            screen.DrawLine(Pens.Red, pointWindow.X, O.Y, pointWindow.X, pointWindow.Y);
-            screen.DrawLine(Pens.Red, O.X, pointWindow.Y, pointWindow.X, pointWindow.Y);
+            //берем рандомную точку из списка точек графика, такую, чтобы ее было видно на экране
+            Random random = new Random();
+            int attempts = 0;
+            PointF ballDestinationWindow;
+            do
+            {
+                ballDestinationWindow = functionPointsList[random.Next(0, functionPointsList.Count - 1)];
+                if (attempts++ > 100)
+                    break;
+            }
+            while (ballDestinationWindow.Y < 20 || ballDestinationWindow.Y > panelGraph.Height - 20);
 
-            labelCoordinateXY.Location = Point.Round(pointWindow);
-            labelCoordinateXY.Text = "x: " + pointGraph.X.ToString() + " y: " + pointGraph.Y.ToString();
-            labelCoordinateXY.Update();
+            ballDestinationGraph = ConvertWindowToGraph(ballDestinationWindow);
+            CalculateNormalLine();
+            ballCurrentPositionGraph = ballOriginGraph;
+
+            panelGraph.Invalidate();
         }
 
+        private void CalculateBallPosition()
+        {
+            //производная в точке
+            PointF derivativePoint = new PointF(ballDestinationGraph.X, function.Derivative(ballDestinationGraph.X));
+            //прямая, перпендикулярная касательной функции в точке derivativePoint
+            LinearExpression functionNormal = new LinearExpression(-1 / derivativePoint.Y, ballDestinationGraph.X / derivativePoint.Y + ballDestinationGraph.Y);
+
+            //делаем скорость мячика постоянной
+            ballCurrentPositionGraph.X += Math.Abs(ballOriginGraph.X - ballDestinationGraph.X) / 100;
+            //изменяем Y
+            ballCurrentPositionGraph.Y = functionNormal.Calc(ballCurrentPositionGraph.X);
+        }
+
+        private void RenderBall(Graphics screen)
+        {
+            if (function == null)
+                return;
+
+            if (!timerFallingBalls.Enabled)
+                return;
+
+            PointF ballCurrentPositionWindow = ConvertGraphToWindow(ballCurrentPositionGraph);
+
+            screen.DrawRectangle(Pens.Red, ballCurrentPositionWindow.X - (int)(0.2f * unit), ballCurrentPositionWindow.Y - (int)(0.2f * unit), (int)(0.4f * unit), (int)(0.4f * unit));
+        }
+
+        private void TimerFallingBalls_Tick(object sender, EventArgs e)
+        {
+            if (CollisionCheck())
+            {
+                timerFallingBalls.Enabled = false;
+                MessageBox.Show("collision detected");
+                return;
+            }
+
+            CalculateBallPosition();
+            panelGraph.Invalidate();
+        }
+
+        private bool CollisionCheck()
+        {
+            //с тангенсом оно не работает, я хз почему
+            //хотя по факту оно и не должно работать, тк тангенс периодическая функция с ветвями в бесконечности
+            PointF collisionPointGraph = new PointF(ballCurrentPositionGraph.X, function.Calc(ballCurrentPositionGraph.X));
+
+            float epsilon = 0.5f; 
+
+            if (collisionPointGraph.Y > ballCurrentPositionGraph.Y - epsilon && collisionPointGraph.Y < ballCurrentPositionGraph.Y + epsilon)
+                return true;
+            else
+                return false;
+        }
+        
+
+        //
+        //События панели
+        //
         private void PanelGraph_MouseClick(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Right)
                 rightButtonClicked = true;
-        }
-
-        private void ResetScale()
-        {
-            unit = 100.0f;
-            labelScale.Text = Math.Round(unit / 100, 2).ToString();
         }
 
         private void ButtonRandomFunction_Click(object sender, EventArgs e)
@@ -280,7 +340,7 @@ namespace winforms_2
                     function = new Tangent();
                     break;
                 case 2:
-                    function = new RandomAssFuckingLinearExpression();
+                    function = new LinearExpression(2, 5);
                     break;
                 case 3:
                     function = new Cubed();
@@ -289,6 +349,8 @@ namespace winforms_2
                     function = new Squared();
                     break;
             }
+
+            function = new Squared();
 
             CalculateFunctionPoints();
             panelGraph.Invalidate();
@@ -364,6 +426,47 @@ namespace winforms_2
             }
         }
 
+
+        //
+        //Стиль фона и начальные части графика
+        //
+        private void DrawStartThings(Graphics screen)
+        {
+            //Coordinate Axes
+            screen.DrawLine(Pens.Black, new PointF(O.X, 0), new PointF(O.X, panelGraph.Height));
+            screen.DrawLine(Pens.Black, new PointF(0, O.Y), new PointF(panelGraph.Width, O.Y));
+
+            //Unit Circle
+            IFunction forCircle = new Sine();
+            List<PointF> pointsListCircle = new List<PointF>();
+
+            for (float x = 0; x < 2 * (float)Math.PI; x += 0.1f)
+            {
+                PointF p = new PointF(forCircle.Calc(x - (float)Math.PI / 2), forCircle.Calc(x));
+                p = ConvertGraphToWindow(p);
+                pointsListCircle.Add(p);
+            }
+
+            PointF[] pointsArray = pointsListCircle.ToArray();
+
+            for (int i = 0; i < pointsArray.Length - 2; i += 2)
+                screen.DrawLine(Pens.Black, pointsArray[i], pointsArray[i + 1]);
+        }
+
+        private void DrawBackground(Graphics screen)
+        {
+            if (background.brush == null)
+                return;
+
+            if (background.style == "Picture")
+                screen.DrawImage(Properties.Resources.deathStare, 0, 0, panelGraph.Width, panelGraph.Height);
+            else
+                screen.FillRectangle(background.brush, panelGraph.ClientRectangle);
+
+            //доп задание
+            //RenderChessPattern(screen);
+        }
+
         private void ButtonChangeGraphColor_Click(object sender, EventArgs e)
         {
             colorDialogGraphColor.Color = graphColor;
@@ -403,6 +506,72 @@ namespace winforms_2
             BackgroundStyle background = new BackgroundStyle();
             background.OnDataSubmitted += BackgroundStyle_Change;
             background.ShowDialog();
+        }
+
+
+        //
+        //Доп задания (маленькие)
+        //
+        private void RenderChessPattern(Graphics screen)
+        {
+            Point count = new Point(0, 0);
+            PointF windowPoint = new PointF(0, 0);
+            for (; windowPoint.Y < panelGraph.Height; windowPoint.Y += 30)
+            {
+                for (; windowPoint.X < panelGraph.Width; windowPoint.X += 30)
+                {
+                    if (count.X % 2 == 0)
+                        screen.FillRectangle(Brushes.Beige, windowPoint.X, windowPoint.Y, windowPoint.X + 30, windowPoint.Y + 30);
+                    else
+                        screen.FillRectangle(Brushes.White, windowPoint.X, windowPoint.Y, windowPoint.X + 30, windowPoint.Y + 30);
+
+                    count.X++;
+                }
+
+                if (count.Y % 2 == 0)
+                    count.X = 1;
+                else
+                    count.X = 0;
+
+                count.Y++;
+                windowPoint.X = 0;
+            }
+        }
+
+        private void DrawSelectedPoint(Graphics screen)
+        {
+            if (rightButtonClicked)
+            {
+                selectedPointGraph = ConvertWindowToGraph(mousePosWindow);
+                rightButtonClicked = false;
+            }
+
+            PointF selectedPointWindow = ConvertGraphToWindow(selectedPointGraph);
+
+            //создаем новый point, чтобы label не перекрывал точку
+            labelSelectedCoordinateXY.Location = Point.Round(new PointF(selectedPointWindow.X + 2, selectedPointWindow.Y + 2));
+            labelSelectedCoordinateXY.Text = "x: " + selectedPointGraph.X.ToString() + " y: " + selectedPointGraph.Y.ToString();
+            labelSelectedCoordinateXY.Update();
+
+            screen.FillRectangle(Brushes.Red, selectedPointWindow.X - 2, selectedPointWindow.Y - 2, 4, 4);
+        }
+
+        private void MouseBeam(Graphics screen)
+        {
+            if (function == null)
+                return;
+
+            PointF mousePosGraph = ConvertWindowToGraph(mousePosWindow);
+
+            PointF pointGraph = new PointF(mousePosGraph.X, function.Calc(mousePosGraph.X));
+            PointF pointWindow = ConvertGraphToWindow(pointGraph);
+
+            screen.DrawLine(Pens.Red, pointWindow.X, O.Y, pointWindow.X, pointWindow.Y);
+            screen.DrawLine(Pens.Red, O.X, pointWindow.Y, pointWindow.X, pointWindow.Y);
+
+            labelCoordinateXY.Location = Point.Round(pointWindow);
+            labelCoordinateXY.Text = "x: " + pointGraph.X.ToString() + " y: " + pointGraph.Y.ToString();
+            labelCoordinateXY.Update();
         }
     }
 }

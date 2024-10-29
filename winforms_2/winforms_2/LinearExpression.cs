@@ -1,17 +1,27 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace winforms_2
 {
-    //сделать что-то с тангенсом, чтобы не было вертикальных линий
-    internal class Tangent : IFunction
+    internal class LinearExpression : IFunction
     {
+        private readonly double m_k;
+        private readonly double m_b;
+
+        public LinearExpression(double k, double b)
+        {
+            m_k = k;
+            m_b = b;
+
+        }
+
         public float Calc(double x)
         {
-            return (float)Math.Tan(x);
+            return (float)(m_k * x + m_b);
         }
 
         public float Derivative(double x)
