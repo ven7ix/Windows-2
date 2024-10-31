@@ -12,5 +12,20 @@ namespace winforms_2
         {
             return (float)(x * x * x);
         }
+
+        public float Derivative(double x)
+        {
+            float xDelta = 0.0001f;
+            float derivative;
+
+            derivative = (Calc(x + xDelta) - Calc(x)) / xDelta;
+
+            return derivative;
+        }
+
+        public float CalcX(double y)
+        {
+            return (float)Math.Sqrt(y);
+        }
     }
 }
