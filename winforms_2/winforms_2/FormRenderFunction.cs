@@ -6,6 +6,7 @@ using System.Drawing.Printing;
 using System.IO;
 using System.Reflection.Emit;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows.Forms;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.TrayNotify;
 
@@ -16,7 +17,7 @@ namespace winforms_2
         private PointF O; //(0, 0); ценрт экрана
         private IFunction function; //чтобы определить какую функцию надо рисовать
         private float unit = 100.0f; //еденичная длина
-        private readonly List<PointF> functionPointsList = new List<PointF>();
+        private readonly List<PointF> functionPointsList = new List<PointF>(); //хранится как оконный
         private PointF offset = new PointF(0, 0);
 
         struct Backgound
@@ -98,9 +99,18 @@ namespace winforms_2
 
             RenderFunctionPoints(screen);
 
-            RenderMinecart(screen);
+            if (timerFallingBalls.Enabled)
+            {
+                RenderMinecart(screen);
+                RenderBalls(screen);
 
-            RenderBalls(screen);
+                buttonBackgroudStyle.Enabled = false;
+                buttonChangeGraphColor.Enabled = false;
+                buttonRandomFunction.Enabled = false;
+                buttonSaveFunction.Enabled = false;
+                buttonStartGame.Text = "Stop";
+            }
+            
         }
 
         private void CalculateFunctionPoints()
@@ -186,15 +196,16 @@ namespace winforms_2
             PointF pointGraph = new PointF(mousePosGraph.X, function.Calc(mousePosGraph.X));
             CalculateMinecartPosition(pointGraph);
 
-            screen.DrawLine(Pens.Blue, windowPointBL, windowPointBR);
-            screen.DrawLine(Pens.Blue, windowPointTL, windowPointBR);
-            screen.DrawLine(Pens.Blue, windowPointTL, windowPointBL);
-            screen.DrawLine(Pens.Blue, windowPointTR, windowPointBR);
-            screen.DrawLine(Pens.Blue, windowPointTR, windowPointBL);
+            //screen.DrawLine(Pens.Blue, windowPointBL, windowPointBR);
+            //screen.DrawLine(Pens.Blue, windowPointTL, windowPointBR);
+            //screen.DrawLine(Pens.Blue, windowPointTL, windowPointBL);
+            //screen.DrawLine(Pens.Blue, windowPointTR, windowPointBR);
+            //screen.DrawLine(Pens.Blue, windowPointTR, windowPointBL);
 
-            screen.DrawRectangle(Pens.Red, ConvertGraphToWindow(pointParallel).X - 2, ConvertGraphToWindow(pointParallel).Y - 2, 4, 4);
-            screen.DrawRectangle(Pens.Red, windowPointBL.X - 2, windowPointBL.Y - 2, 4, 4);
-            screen.DrawRectangle(Pens.Red, windowPointBR.X - 2, windowPointBR.Y - 2, 4, 4);
+            float minecartRadius = 0.3f * unit;
+            screen.DrawEllipse(Pens.Green, ConvertGraphToWindow(pointParallel).X - minecartRadius, ConvertGraphToWindow(pointParallel).Y - minecartRadius, 2 * minecartRadius, 2 * minecartRadius);
+            screen.DrawEllipse(Pens.Green, windowPointBL.X - minecartRadius, windowPointBL.Y - minecartRadius, 2 * minecartRadius, 2 * minecartRadius);
+            screen.DrawEllipse(Pens.Green, windowPointBR.X - minecartRadius, windowPointBR.Y - minecartRadius, 2 * minecartRadius, 2 * minecartRadius);
         }
 
         struct Ball
@@ -203,7 +214,7 @@ namespace winforms_2
             public PointF originGraph;
             public PointF currentPositionGraph;
             public bool isRender;
-            public float speed;
+            public float speed; //как оконный
 
             public Ball(PointF destinationGraph, PointF originGraph)
             {
@@ -213,8 +224,17 @@ namespace winforms_2
                 isRender = true;
                 speed = 0;
             }
+
+            public Ball(Ball ball)
+            {
+                destinationGraph = ball.destinationGraph;
+                originGraph = ball.originGraph;
+                currentPositionGraph = ball.originGraph;
+                isRender = ball.isRender;
+                speed = ball.speed;
+            }
         };
-        private readonly List<Ball> fallingBalls = new List<Ball>();
+        private readonly List<Ball> fallingBalls = new List<Ball>(); //хранится как графический
 
         private readonly Random upOrDown = new Random();
         private Ball CalculateBallOrigin(Ball ball)
@@ -226,15 +246,19 @@ namespace winforms_2
             float bNormal = ball.destinationGraph.X / derivativePoint.Y + ball.destinationGraph.Y;
 
             //спавнить мяч сверху или снизу
-            float yOrigin = ConvertWindowToGraph(new PointF(0, 0)).Y;
+            float xBound;
             if (upOrDown.Next() % 2 == 0)
-                yOrigin = ConvertWindowToGraph(new PointF(0, panelGraph.Height)).Y;
+                xBound = ConvertWindowToGraph(new PointF(panelGraph.Width, 0)).X;
+            else
+                xBound = ConvertWindowToGraph(new PointF(0, 0)).X;
 
+            float yOrigin = kNormal * xBound + bNormal;
             float xOrigin = (yOrigin - bNormal) / kNormal;
+
             ball.originGraph = new PointF(xOrigin, yOrigin);
 
-            ball.speed = Math.Sign(ball.destinationGraph.X - ball.originGraph.X) * 0.1f;
-            
+            ball.speed = Math.Sign(ball.destinationGraph.X - ball.originGraph.X) * (0.50f / unit);
+
             return ball;
         }
 
@@ -258,7 +282,66 @@ namespace winforms_2
             ball = CalculateBallOrigin(ball);
             ball.currentPositionGraph = ball.originGraph;
 
+            if (!IsValidSpawn(ball))
+            {
+                ball.speed = 0;
+                ball.isRender = false;
+            }
+
             return ball;
+        }
+
+        private bool IsValidSpawn(Ball ball)
+        {
+            if (function is Squared)
+            {
+                //производная в точке
+                PointF derivativePoint = new PointF(ball.destinationGraph.X, function.Derivative(ball.destinationGraph.X));
+                //прямая, перпендикулярная касательной функции в точке derivativePoint
+                float kNormal = -1 / derivativePoint.Y;
+                float bNormal = ball.destinationGraph.X / derivativePoint.Y + ball.destinationGraph.Y;
+
+                if (Math.Sign(ball.speed) == Math.Sign(kNormal))
+                    return true;
+
+                float x1 = (float)(kNormal + Math.Sqrt(kNormal * kNormal - 4 * bNormal)) / 2;
+                float x2 = (float)(kNormal - Math.Sqrt(kNormal * kNormal - 4 * bNormal)) / 2;
+
+                if (function.Calc(x1) > ConvertWindowToGraph(new PointF(0, 0)).Y || function.Calc(x2) > ConvertWindowToGraph(new PointF(0, 0)).Y)
+                    return true;
+
+                return false;
+            }
+
+            if (function is Tangent)
+            {
+                Ball ballCopy = new Ball(ball);
+
+                if (ballCopy.speed < 0)
+                {
+                    while (ballCopy.currentPositionGraph.X > ballCopy.destinationGraph.X)
+                    {
+                        ballCopy = CalculateCurrentBallPosition(ballCopy);
+
+                        float yPossibleCollision = function.Calc(ball.currentPositionGraph.X);
+                        if (DynamicCollisionCheck(ballCopy, yPossibleCollision))
+                            return false;
+                    }
+                }
+                else if (ballCopy.speed > 0)
+                {
+                    while (ballCopy.currentPositionGraph.X < ballCopy.destinationGraph.X)
+                    {
+                        ballCopy = CalculateCurrentBallPosition(ballCopy);
+
+                        float yPossibleCollision = function.Calc(ball.currentPositionGraph.X);
+                        if (DynamicCollisionCheck(ballCopy, yPossibleCollision))
+                            return false;
+                    }
+                }
+            }
+
+            return true;
         }
 
         private Ball CalculateCurrentBallPosition(Ball ball)
@@ -276,6 +359,7 @@ namespace winforms_2
             return ball;
         }
 
+        float score = 0;
         private void RenderBalls(Graphics screen)
         {
             if (function == null)
@@ -284,26 +368,50 @@ namespace winforms_2
             if (!timerFallingBalls.Enabled)
                 return;
 
-            int ballRadius = (int)(0.2f * unit);
+            int ballRadius = (int)(0.1f * unit);
             for (int i = 0; i < fallingBalls.Count; i++)
             {
-                if (CollisionCheck(fallingBalls[i]))
+                Ball ball = fallingBalls[i];
+
+                float yPossibleCollision = function.Calc(ball.currentPositionGraph.X);
+                if (DestinationCollisionCheck(ball) || ball.speed == 0 || !ball.isRender || DynamicCollisionCheck(ball, yPossibleCollision))
                 {
-                    fallingBalls.RemoveAt(i);
+                    fallingBalls.Remove(ball);
                     continue;
                 }
 
-                PointF ballCurrentPositionWindow = ConvertGraphToWindow(fallingBalls[i].currentPositionGraph);
+                float minecartRadius = 20.0f / unit;
+                if (MinecartCollisionCheck(ball, pointParallel, minecartRadius) || MinecartCollisionCheck(ball, ConvertWindowToGraph(windowPointBL), minecartRadius) || MinecartCollisionCheck(ball, ConvertWindowToGraph(windowPointBR), minecartRadius))
+                {
+                    fallingBalls.Remove(ball);
+                    labelScore.Text = score++.ToString();
+                    continue;
+                }
+
+                PointF ballCurrentPositionWindow = ConvertGraphToWindow(ball.currentPositionGraph);
                 screen.DrawEllipse(Pens.Red, ballCurrentPositionWindow.X - ballRadius, ballCurrentPositionWindow.Y - ballRadius, 2 * ballRadius, 2 * ballRadius);
 
                 if (fallingBalls[i].speed < 0)
-                    screen.DrawLine(Pens.Blue, ConvertGraphToWindow(fallingBalls[i].originGraph), ConvertGraphToWindow(fallingBalls[i].destinationGraph));
-                else
-                    screen.DrawLine(Pens.Red, ConvertGraphToWindow(fallingBalls[i].originGraph), ConvertGraphToWindow(fallingBalls[i].destinationGraph));
+                    screen.DrawLine(Pens.Blue, ConvertGraphToWindow(ball.originGraph), ConvertGraphToWindow(ball.destinationGraph));
+                else if (fallingBalls[i].speed > 0)
+                    screen.DrawLine(Pens.Red, ConvertGraphToWindow(ball.originGraph), ConvertGraphToWindow(ball.destinationGraph));
             }
         }
 
-        private bool CollisionCheck(Ball ball)
+        private bool MinecartCollisionCheck(Ball ball, PointF minecart, float minecartRadius)
+        {
+            PointF position = ball.currentPositionGraph;
+
+            if (position.X < minecart.X + minecartRadius && position.X > minecart.X - minecartRadius)
+            {
+                if (position.Y < minecart.Y + minecartRadius && position.Y > minecart.Y - minecartRadius)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private bool DestinationCollisionCheck(Ball ball)
         {
             if (ball.currentPositionGraph.X > ball.destinationGraph.X && ball.destinationGraph.X > ball.originGraph.X)
                 return true;
@@ -311,29 +419,80 @@ namespace winforms_2
             if (ball.currentPositionGraph.X < ball.destinationGraph.X && ball.destinationGraph.X < ball.originGraph.X)
                 return true;
 
+            return false;
+        }
 
-            PointF collisionPointGraph = new PointF(ball.currentPositionGraph.X, function.Calc(ball.currentPositionGraph.X));
-            float epsilon = 0.5f;
+        private bool DynamicCollisionCheck(Ball ball, float yPossibleCollision)
+        {
+            float epsilon = 0.01f;
 
-            if (collisionPointGraph.Y > ball.currentPositionGraph.Y - epsilon && collisionPointGraph.Y < ball.currentPositionGraph.Y + epsilon)
+            if ((yPossibleCollision > ball.currentPositionGraph.Y - epsilon) && (yPossibleCollision < ball.currentPositionGraph.Y + epsilon))
                 return true;
 
             return false;
         }
 
+        int timeLeft = 1000; //milliseconds??? (10 seconds)
         private void ButtonStartGame_Click(object sender, EventArgs e)
         {
             if (functionPointsList.Count == 0)
                 return;
 
-            timerFallingBalls.Enabled = true;
+            if (timerFallingBalls.Enabled)
+            {
+                timerFallingBalls.Enabled = false;
+                EndGame("0");
+                return;
+            }
 
-            for (int i = 0; i < 10; i++)
-                fallingBalls.Add(GenerateBall());
+            timerFallingBalls.Enabled = true;
+        }
+
+        private void EndGame(string winLose)
+        {
+            timerFallingBalls.Enabled = false;
+            fallingBalls.Clear();
+
+            timeLeft = 1000;
+            score = 0;
+            labelTimeLeft.Text = winLose;
+            labelScore.Text = score.ToString();
+            
+            buttonBackgroudStyle.Enabled = true;
+            buttonChangeGraphColor.Enabled = true;
+            buttonRandomFunction.Enabled = true;
+            buttonSaveFunction.Enabled = true;
+            buttonStartGame.Text = "Start";
+
+            panelGraph.Invalidate();
         }
 
         private void TimerFallingBalls_Tick(object sender, EventArgs e)
         {
+            labelTimeLeft.Text = timeLeft--.ToString();
+
+            if (score > 100)
+            {
+                EndGame("YOU WIN");
+                return;
+            }
+            if (timeLeft < 0)
+            {
+                EndGame("YOU LOSE");
+                return;
+            }
+
+            if (timeLeft % 20 == 0)
+            {
+                for (int i = 0; i < 10; i++)
+                {
+                    Ball ball = GenerateBall();
+
+                    if (ball.speed != 0)
+                        fallingBalls.Add(ball);
+                }
+            }
+
             for (int i = 0; i < fallingBalls.Count; i++)
                 fallingBalls[i] = CalculateCurrentBallPosition(fallingBalls[i]);
 
@@ -373,6 +532,8 @@ namespace winforms_2
                     function = new Squared();
                     break;
             }
+
+            //function = new Tangent();
 
             CalculateFunctionPoints();
             panelGraph.Invalidate();

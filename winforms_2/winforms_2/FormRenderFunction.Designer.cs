@@ -38,11 +38,13 @@ namespace winforms_2
             this.buttonSaveFunction = new System.Windows.Forms.Button();
             this.buttonRandomFunction = new System.Windows.Forms.Button();
             this.colorDialogGraphColor = new System.Windows.Forms.ColorDialog();
+            this.timerFallingBalls = new System.Windows.Forms.Timer(this.components);
             this.panelGraph = new winforms_2.DoubleBufferedPanel();
+            this.labelScore = new System.Windows.Forms.Label();
             this.labelSelectedCoordinateXY = new System.Windows.Forms.Label();
             this.labelCoordinateXY = new System.Windows.Forms.Label();
             this.labelScale = new System.Windows.Forms.Label();
-            this.timerFallingBalls = new System.Windows.Forms.Timer(this.components);
+            this.labelTimeLeft = new System.Windows.Forms.Label();
             this.groupBox1.SuspendLayout();
             this.panelGraph.SuspendLayout();
             this.SuspendLayout();
@@ -117,8 +119,15 @@ namespace winforms_2
             this.buttonRandomFunction.UseVisualStyleBackColor = true;
             this.buttonRandomFunction.Click += new System.EventHandler(this.ButtonRandomFunction_Click);
             // 
+            // timerFallingBalls
+            // 
+            this.timerFallingBalls.Interval = 1;
+            this.timerFallingBalls.Tick += new System.EventHandler(this.TimerFallingBalls_Tick);
+            // 
             // panelGraph
             // 
+            this.panelGraph.Controls.Add(this.labelTimeLeft);
+            this.panelGraph.Controls.Add(this.labelScore);
             this.panelGraph.Controls.Add(this.labelSelectedCoordinateXY);
             this.panelGraph.Controls.Add(this.labelCoordinateXY);
             this.panelGraph.Controls.Add(this.labelScale);
@@ -134,6 +143,15 @@ namespace winforms_2
             this.panelGraph.MouseUp += new System.Windows.Forms.MouseEventHandler(this.PanelGraph_MouseUp);
             this.panelGraph.MouseWheel += new System.Windows.Forms.MouseEventHandler(this.PanelGraph_MouseWheel);
             this.panelGraph.Resize += new System.EventHandler(this.PanelGraph_Resize);
+            // 
+            // labelScore
+            // 
+            this.labelScore.AutoSize = true;
+            this.labelScore.Location = new System.Drawing.Point(12, 9);
+            this.labelScore.Name = "labelScore";
+            this.labelScore.Size = new System.Drawing.Size(13, 13);
+            this.labelScore.TabIndex = 4;
+            this.labelScore.Text = "0";
             // 
             // labelSelectedCoordinateXY
             // 
@@ -167,10 +185,15 @@ namespace winforms_2
             this.labelScale.TabIndex = 0;
             this.labelScale.Text = "1";
             // 
-            // timerFallingBalls
+            // labelTimeLeft
             // 
-            this.timerFallingBalls.Interval = 10;
-            this.timerFallingBalls.Tick += new System.EventHandler(this.TimerFallingBalls_Tick);
+            this.labelTimeLeft.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.labelTimeLeft.AutoSize = true;
+            this.labelTimeLeft.Location = new System.Drawing.Point(12, 35);
+            this.labelTimeLeft.Name = "labelTimeLeft";
+            this.labelTimeLeft.Size = new System.Drawing.Size(13, 13);
+            this.labelTimeLeft.TabIndex = 5;
+            this.labelTimeLeft.Text = "0";
             // 
             // FormRenderFunction
             // 
@@ -203,6 +226,8 @@ namespace winforms_2
         private Label labelSelectedCoordinateXY;
         private Timer timerFallingBalls;
         private Button buttonStartGame;
+        private Label labelScore;
+        private Label labelTimeLeft;
     }
 }
 
